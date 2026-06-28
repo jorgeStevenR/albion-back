@@ -66,6 +66,8 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/auth/**").permitAll()
 
+                        .requestMatchers("/api/health").permitAll()
+
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/api/balance/player/**").hasAnyRole(MEMBER_ROLES)

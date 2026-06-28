@@ -58,6 +58,17 @@ Si ves `max clients reached in session mode - pool_size: 15`:
 - Cierra el backend local si también apunta a la misma BD.
 - Espera 1–2 min y redeploy (las conexiones zombie de intentos fallidos se liberan solas).
 
+### Mantener el servicio free activo en Render
+
+Render apaga instancias free tras ~15 min sin peticiones. Este repo incluye `.github/workflows/keep-render-alive.yml` que hace ping cada 10 min.
+
+1. En GitHub → repo **albion-back** → **Settings → Secrets and variables → Actions**
+2. Crea el secret `RENDER_BACKEND_URL` con la URL de Render, sin barra final:  
+   `https://tu-servicio.onrender.com`
+3. El workflow corre solo; puedes probarlo en **Actions → Keep Render alive → Run workflow**
+
+También puedes usar [UptimeRobot](https://uptimerobot.com) (gratis, cada 5 min) apuntando a `https://tu-servicio.onrender.com/api/health`.
+
 ## CORS
 
 Si el front está en otro dominio, configura CORS en producción apuntando a la URL del frontend.
