@@ -99,7 +99,7 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/sales/**").hasAnyRole(LEADER_ROLES)
 
-                        .requestMatchers(HttpMethod.GET, "/api/guild/stats", "/api/guild/transactions").hasAnyRole(MEMBER_ROLES)
+                        .requestMatchers(HttpMethod.GET, "/api/guild/stats", "/api/guild/transactions").hasAnyRole("ADMIN", "OFFICER")
 
                         .requestMatchers(HttpMethod.GET, "/api/penalties/all", "/api/penalties/appeals/all").hasRole("ADMIN")
 

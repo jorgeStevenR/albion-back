@@ -143,7 +143,7 @@ public class AvalonRunService {
         if (request.getGrossValue().compareTo(BigDecimal.ZERO) > 0) {
             avalonRun.getLootItems().add(LootItem.builder()
                     .avalonRun(avalonRun)
-                    .name("Bolsas")
+                    .name("Bolsitas del piso")
                     .type(LootType.BAG)
                     .quantity(1)
                     .marketValue(request.getGrossValue())
