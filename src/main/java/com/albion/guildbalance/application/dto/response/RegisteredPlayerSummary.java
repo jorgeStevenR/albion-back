@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AvalonRolePlayerResponse {
+public class RegisteredPlayerSummary {
 
     private Long registrationId;
     private Long playerId;

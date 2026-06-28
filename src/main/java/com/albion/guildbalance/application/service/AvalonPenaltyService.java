@@ -259,14 +259,9 @@ public class AvalonPenaltyService {
     }
 
     private boolean hasPenaltyPermission(AvalonRun avalon) {
-        if (SecurityUtils.isAdminOrOfficer()) {
-            return true;
-        }
         PlayerPrincipal current = SecurityUtils.getCurrentPlayer();
-        if (avalon.getCreatedBy() != null && avalon.getCreatedBy().getId().equals(current.getPlayerId())) {
-            return true;
-        }
-        return delegateRepository.existsByAvalonRunIdAndPlayerId(avalon.getId(), current.getPlayerId());
+        return avalon.getCreatedBy() != null
+                && avalon.getCreatedBy().getId().equals(current.getPlayerId());
     }
 
     private AvalonRun getAvalonOrThrow(Long avalonId) {

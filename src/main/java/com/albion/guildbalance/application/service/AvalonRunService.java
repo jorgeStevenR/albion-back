@@ -2,11 +2,13 @@ package com.albion.guildbalance.application.service;
 
 import com.albion.guildbalance.application.dto.request.AvalonMapsRequest;
 import com.albion.guildbalance.application.dto.request.AvalonRunRequest;
+import com.albion.guildbalance.application.dto.request.BagGrossRequest;
 import com.albion.guildbalance.application.dto.request.LootItemRequest;
 import com.albion.guildbalance.application.dto.request.ParticipantRequest;
 import com.albion.guildbalance.application.dto.response.AvalonRunResponse;
 import com.albion.guildbalance.application.dto.response.DistributionCalculationResponse;
 import com.albion.guildbalance.application.dto.response.DistributionResponse;
+import com.albion.guildbalance.application.dto.response.ParticipantResponse;
 import com.albion.guildbalance.application.exception.BusinessException;
 import com.albion.guildbalance.application.exception.ResourceNotFoundException;
 import com.albion.guildbalance.application.mapper.EntityMapper;
@@ -15,6 +17,8 @@ import com.albion.guildbalance.domain.entity.*;
 import com.albion.guildbalance.domain.enums.AvalonStatus;
 import com.albion.guildbalance.domain.enums.LootSaleStatus;
 import com.albion.guildbalance.domain.enums.LootType;
+import com.albion.guildbalance.domain.enums.ParticipantType;
+import com.albion.guildbalance.domain.enums.RegistrationStatus;
 import com.albion.guildbalance.domain.service.BalanceCalculator;
 import com.albion.guildbalance.infrastructure.persistence.repository.LootItemJpaRepository;
 import com.albion.guildbalance.web.security.SecurityUtils;
@@ -26,6 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -37,6 +43,8 @@ public class AvalonRunService {
     private final DistributionRepositoryPort distributionRepository;
     private final WalletRepositoryPort walletRepository;
     private final AvalonRoleService avalonRoleService;
+    private final AvalonRoleRegistrationRepositoryPort registrationRepository;
+    private final AvalonRoleSlotRepositoryPort slotRepository;
     private final LootItemJpaRepository lootItemRepository;
     private final EntityMapper mapper;
     private final AvalonPingScheduleValidator pingScheduleValidator;
@@ -44,12 +52,21 @@ public class AvalonRunService {
     @Transactional(readOnly = true)
     public List<AvalonRunResponse> findAll() {
         log.debug("Fetching all avalon runs");
-        return mapper.toAvalonRunResponseList(avalonRunRepository.findAll());
+        List<AvalonRunResponse> responses = mapper.toAvalonRunResponseList(avalonRunRepository.findAll());
+        responses.forEach(this::enrichRegistrationCounts);
+        return responses;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AvalonRunResponse findById(Long id) {
-        return mapper.toAvalonRunResponse(getAvalonOrThrow(id));
+        AvalonRun avalon = getAvalonOrThrow(id);
+        if (syncParticipantsFromRegistrations(avalon)) {
+            avalon = avalonRunRepository.save(avalon);
+        }
+        AvalonRunResponse response = mapper.toAvalonRunResponse(avalon);
+        enrichRegistrationCounts(response);
+        enrichParticipantRoles(response, id);
+        return response;
     }
 
     @Transactional
@@ -119,6 +136,44 @@ public class AvalonRunService {
     }
 
     @Transactional
+    public AvalonRunResponse setBagGross(Long avalonId, BagGrossRequest request) {
+        log.info("Setting bag gross for avalon {}: {}", avalonId, request.getGrossValue());
+        AvalonRun avalonRun = getOpenAvalonOrThrow(avalonId);
+        avalonRun.getLootItems().removeIf(l -> l.getType() == LootType.BAG);
+        if (request.getGrossValue().compareTo(BigDecimal.ZERO) > 0) {
+            avalonRun.getLootItems().add(LootItem.builder()
+                    .avalonRun(avalonRun)
+                    .name("Bolsas")
+                    .type(LootType.BAG)
+                    .quantity(1)
+                    .marketValue(request.getGrossValue())
+                    .saleStatus(LootSaleStatus.NOT_APPLICABLE)
+                    .build());
+        }
+        return mapper.toAvalonRunResponse(avalonRunRepository.save(avalonRun));
+    }
+
+    @Transactional
+    public AvalonRunResponse addChest(Long avalonId, BagGrossRequest request) {
+        AvalonRun avalonRun = getOpenAvalonOrThrow(avalonId);
+        long chestNumber = avalonRun.getLootItems().stream()
+                .filter(l -> l.getType() == LootType.ITEM)
+                .count() + 1;
+
+        LootItem lootItem = LootItem.builder()
+                .avalonRun(avalonRun)
+                .name("Cofre " + chestNumber)
+                .type(LootType.ITEM)
+                .quantity(1)
+                .marketValue(request.getGrossValue())
+                .saleStatus(LootSaleStatus.UNSOLD)
+                .build();
+
+        avalonRun.getLootItems().add(lootItem);
+        return mapper.toAvalonRunResponse(avalonRunRepository.save(avalonRun));
+    }
+
+    @Transactional
     public AvalonRunResponse updateMaps(Long avalonId, AvalonMapsRequest request) {
         log.info("Updating maps for avalon {}: {} maps, cost {}", avalonId, request.getMapsThrown(), request.getMapsCost());
         AvalonRun avalonRun = getOpenAvalonOrThrow(avalonId);
@@ -132,8 +187,12 @@ public class AvalonRunService {
         log.info("Calculating distribution and finishing avalon {}", avalonId);
         AvalonRun avalonRun = getOpenAvalonOrThrow(avalonId);
 
+        if (syncParticipantsFromRegistrations(avalonRun)) {
+            avalonRun = avalonRunRepository.save(avalonRun);
+        }
+
         if (avalonRun.getParticipants().isEmpty()) {
-            throw new BusinessException("No se puede calcular el reparto sin participantes");
+            throw new BusinessException("No se puede calcular el reparto sin participantes inscritos");
         }
         if (avalonRun.getLootItems().isEmpty()) {
             throw new BusinessException("No se puede calcular el reparto sin loot");
@@ -213,5 +272,62 @@ public class AvalonRunService {
             throw new BusinessException("La avaloniana ya no está abierta");
         }
         return avalonRun;
+    }
+
+    private boolean syncParticipantsFromRegistrations(AvalonRun avalon) {
+        List<AvalonRoleRegistration> registrations = registrationRepository.findActiveByAvalonId(avalon.getId());
+        boolean changed = false;
+        for (AvalonRoleRegistration registration : registrations) {
+            Long playerId = registration.getPlayer().getId();
+            boolean exists = avalon.getParticipants().stream()
+                    .anyMatch(p -> p.getPlayer().getId().equals(playerId));
+            if (!exists) {
+                avalon.getParticipants().add(AvalonParticipant.builder()
+                        .avalonRun(avalon)
+                        .player(registration.getPlayer())
+                        .participantType(resolveParticipantType(registration))
+                        .build());
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private void enrichRegistrationCounts(AvalonRunResponse response) {
+        response.setRegisteredCount((int) registrationRepository.countActiveByAvalonId(response.getId()));
+        response.setTotalCapacity(slotRepository.findByAvalonId(response.getId()).stream()
+                .mapToInt(AvalonRoleSlot::getMaxPlayers)
+                .sum());
+    }
+
+    private void enrichParticipantRoles(AvalonRunResponse response, Long avalonId) {
+        if (response.getParticipants() == null) {
+            return;
+        }
+        List<AvalonRoleRegistration> registrations = registrationRepository.findActiveByAvalonId(avalonId);
+        Map<Long, AvalonRoleRegistration> byPlayer = registrations.stream()
+                .collect(Collectors.toMap(r -> r.getPlayer().getId(), r -> r, (a, b) -> a));
+        Map<String, String> slotNames = slotRepository.findByAvalonId(avalonId).stream()
+                .collect(Collectors.toMap(AvalonRoleSlot::getSlotKey, AvalonRoleSlot::getDisplayName, (a, b) -> a));
+
+        for (ParticipantResponse participant : response.getParticipants()) {
+            AvalonRoleRegistration registration = byPlayer.get(participant.getPlayerId());
+            if (registration == null) {
+                continue;
+            }
+            String slotKey = registration.getSlotKey() != null
+                    ? registration.getSlotKey()
+                    : (registration.getRoleType() != null ? registration.getRoleType().name() : null);
+            participant.setRoleSlotKey(slotKey);
+            participant.setRoleDisplayName(slotKey != null ? slotNames.getOrDefault(slotKey, slotKey) : null);
+        }
+    }
+
+    private ParticipantType resolveParticipantType(AvalonRoleRegistration registration) {
+        String slotKey = registration.getSlotKey();
+        if (slotKey != null && (slotKey.equals("SCAUT") || slotKey.equals("SCOUT"))) {
+            return ParticipantType.SCOUT;
+        }
+        return ParticipantType.PLAYER;
     }
 }

@@ -29,4 +29,6 @@ public class AvalonRunResponse {
     private List<LootItemResponse> lootItems;
     private Long createdByPlayerId;
     private String createdByName;
+    private int registeredCount;
+    private int totalCapacity;
 }

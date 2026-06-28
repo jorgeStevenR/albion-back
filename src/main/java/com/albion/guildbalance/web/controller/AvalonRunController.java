@@ -2,6 +2,7 @@ package com.albion.guildbalance.web.controller;
 
 import com.albion.guildbalance.application.dto.request.AvalonMapsRequest;
 import com.albion.guildbalance.application.dto.request.AvalonRunRequest;
+import com.albion.guildbalance.application.dto.request.BagGrossRequest;
 import com.albion.guildbalance.application.dto.request.LootItemRequest;
 import com.albion.guildbalance.application.dto.request.ParticipantRequest;
 import com.albion.guildbalance.application.dto.response.AvalonRunResponse;
@@ -63,6 +64,24 @@ public class AvalonRunController {
             @Valid @RequestBody LootItemRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Loot added", avalonRunService.addLoot(id, request)));
+    }
+
+    @PutMapping("/{id}/loot/bags")
+    @Operation(summary = "Set total gross bag value for avalon run")
+    public ResponseEntity<ApiResponse<AvalonRunResponse>> setBagGross(
+            @PathVariable Long id,
+            @Valid @RequestBody BagGrossRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Bolsas actualizadas", avalonRunService.setBagGross(id, request)));
+    }
+
+    @PostMapping("/{id}/loot/chests")
+    @Operation(summary = "Add chest with gross market value (20% guild cut on distribution)")
+    public ResponseEntity<ApiResponse<AvalonRunResponse>> addChest(
+            @PathVariable Long id,
+            @Valid @RequestBody BagGrossRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Cofre agregado", avalonRunService.addChest(id, request)));
     }
 
     @PutMapping("/{id}/maps")

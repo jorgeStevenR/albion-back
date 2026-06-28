@@ -50,4 +50,9 @@ public class AvalonRoleRegistrationRepositoryAdapter implements AvalonRoleRegist
         return repository.findByAvalonRun_IdAndPlayer_IdAndSlotKeyAndStatus(
                 avalonId, playerId, slotKey, RegistrationStatus.ACTIVE);
     }
+
+    @Override
+    public long countActiveByAvalonId(Long avalonId) {
+        return repository.countByAvalonRun_IdAndStatus(avalonId, RegistrationStatus.ACTIVE);
+    }
 }

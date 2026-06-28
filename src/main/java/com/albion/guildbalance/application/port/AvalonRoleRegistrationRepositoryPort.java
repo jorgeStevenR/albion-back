@@ -22,4 +22,6 @@ public interface AvalonRoleRegistrationRepositoryPort {
 
     Optional<AvalonRoleRegistration> findActiveByAvalonIdAndPlayerIdAndSlotKey(
             Long avalonId, Long playerId, String slotKey);
+
+    long countActiveByAvalonId(Long avalonId);
 }

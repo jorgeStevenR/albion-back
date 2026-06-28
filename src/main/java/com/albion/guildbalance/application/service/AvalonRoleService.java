@@ -9,6 +9,7 @@ import com.albion.guildbalance.application.dto.request.UpdateRoleSlotRequest;
 import com.albion.guildbalance.application.dto.response.AvalonRolePlayerResponse;
 import com.albion.guildbalance.application.dto.response.AvalonRoleSlotResponse;
 import com.albion.guildbalance.application.dto.response.AvalonRolesOverviewResponse;
+import com.albion.guildbalance.application.dto.response.RegisteredPlayerSummary;
 import com.albion.guildbalance.application.dto.response.RoleBuildSlotResponse;
 import com.albion.guildbalance.application.dto.response.RoleBuildTemplateResponse;
 import com.albion.guildbalance.application.dto.response.SwapItemResponse;
@@ -19,6 +20,7 @@ import com.albion.guildbalance.application.port.AvalonRoleRegistrationRepository
 import com.albion.guildbalance.application.port.AvalonRoleSlotRepositoryPort;
 import com.albion.guildbalance.application.port.AvalonRunRepositoryPort;
 import com.albion.guildbalance.application.port.PlayerRepositoryPort;
+import com.albion.guildbalance.domain.entity.AvalonParticipant;
 import com.albion.guildbalance.domain.entity.AvalonRoleRegistration;
 import com.albion.guildbalance.domain.entity.AvalonRoleSlot;
 import com.albion.guildbalance.domain.entity.AvalonRun;
@@ -27,6 +29,7 @@ import com.albion.guildbalance.domain.entity.AvalonSlotSwapItem;
 import com.albion.guildbalance.domain.entity.Player;
 import com.albion.guildbalance.domain.enums.AvalonStatus;
 import com.albion.guildbalance.domain.enums.EquipmentSlot;
+import com.albion.guildbalance.domain.enums.ParticipantType;
 import com.albion.guildbalance.domain.enums.RegistrationStatus;
 import com.albion.guildbalance.domain.enums.RoleType;
 import com.albion.guildbalance.domain.util.ItemSlotClassifier;
@@ -130,11 +133,29 @@ public class AvalonRoleService {
                         slot.getRoleType() != null ? buildTemplates.get(slot.getRoleType()) : null))
                 .toList();
 
+        Map<String, String> slotNames = slots.stream()
+                .collect(Collectors.toMap(AvalonRoleSlot::getSlotKey, AvalonRoleSlot::getDisplayName, (a, b) -> a));
+
+        List<RegisteredPlayerSummary> registeredSummaries = registrations.stream()
+                .map(r -> RegisteredPlayerSummary.builder()
+                        .registrationId(r.getId())
+                        .playerId(r.getPlayer().getId())
+                        .albionName(r.getPlayer().getAlbionName())
+                        .slotKey(resolveSlotKey(r))
+                        .slotDisplayName(slotNames.getOrDefault(resolveSlotKey(r), resolveSlotKey(r)))
+                        .build())
+                .toList();
+
+        int totalCapacity = slots.stream().mapToInt(AvalonRoleSlot::getMaxPlayers).sum();
+
         return AvalonRolesOverviewResponse.builder()
                 .avalonId(avalonId)
                 .registrationsOpen(avalon.isRegistrationsOpen())
                 .avalonOpen(avalon.getStatus() == AvalonStatus.OPEN)
                 .roles(roleResponses)
+                .totalRegistered(registrations.size())
+                .totalCapacity(totalCapacity)
+                .registeredPlayers(registeredSummaries)
                 .build();
     }
 
@@ -176,6 +197,7 @@ public class AvalonRoleService {
         registrationRepository.save(registration);
         slot.setCurrentPlayers(slot.getCurrentPlayers() + 1);
         slotRepository.save(slot);
+        ensureParticipant(avalon, player, slotKey);
 
         log.info("Player {} joined slot {} in avalon {}", playerId, slotKey, avalonId);
         return getRoles(avalonId);
@@ -205,6 +227,7 @@ public class AvalonRoleService {
 
         slot.setCurrentPlayers(Math.max(0, slot.getCurrentPlayers() - 1));
         slotRepository.save(slot);
+        removeParticipant(registration.getAvalonRun(), playerId);
 
         log.info("Player {} left slot {} in avalon {}", playerId, slotKey, avalonId);
         return getRoles(avalonId);
@@ -316,6 +339,8 @@ public class AvalonRoleService {
                         .registrationId(r.getId())
                         .playerId(r.getPlayer().getId())
                         .albionName(r.getPlayer().getAlbionName())
+                        .slotKey(slot.getSlotKey())
+                        .slotDisplayName(slot.getDisplayName())
                         .build())
                 .toList();
 
@@ -370,6 +395,33 @@ public class AvalonRoleService {
             return registration.getSlotKey();
         }
         return registration.getRoleType() != null ? registration.getRoleType().name() : "";
+    }
+
+    private void ensureParticipant(AvalonRun avalon, Player player, String slotKey) {
+        boolean exists = avalon.getParticipants().stream()
+                .anyMatch(p -> p.getPlayer().getId().equals(player.getId()));
+        if (exists) {
+            return;
+        }
+        avalon.getParticipants().add(AvalonParticipant.builder()
+                .avalonRun(avalon)
+                .player(player)
+                .participantType(resolveParticipantType(slotKey))
+                .build());
+        avalonRunRepository.save(avalon);
+    }
+
+    private void removeParticipant(AvalonRun avalon, Long playerId) {
+        if (avalon.getParticipants().removeIf(p -> p.getPlayer().getId().equals(playerId))) {
+            avalonRunRepository.save(avalon);
+        }
+    }
+
+    private ParticipantType resolveParticipantType(String slotKey) {
+        if (slotKey != null && (slotKey.equals("SCAUT") || slotKey.equals("SCOUT"))) {
+            return ParticipantType.SCOUT;
+        }
+        return ParticipantType.PLAYER;
     }
 
     private String formatRoleLabel(RoleType roleType) {

@@ -36,4 +36,6 @@ public interface AvalonRoleRegistrationJpaRepository extends JpaRepository<Avalo
             ORDER BY COUNT(DISTINCT r.avalonRun.id) DESC
             """)
     List<Object[]> countAvalonsByPlayerForRole(RoleType roleType, RegistrationStatus status);
+
+    long countByAvalonRun_IdAndStatus(Long avalonId, RegistrationStatus status);
 }

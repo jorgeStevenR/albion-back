@@ -19,4 +19,10 @@ public class AvalonRolesOverviewResponse {
     private boolean avalonOpen;
     @Builder.Default
     private List<AvalonRoleSlotResponse> roles = new ArrayList<>();
+
+    private int totalRegistered;
+    private int totalCapacity;
+
+    @Builder.Default
+    private List<RegisteredPlayerSummary> registeredPlayers = new ArrayList<>();
 }

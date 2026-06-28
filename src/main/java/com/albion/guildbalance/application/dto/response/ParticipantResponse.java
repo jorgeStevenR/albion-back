@@ -16,4 +16,6 @@ public class ParticipantResponse {
     private Long playerId;
     private String albionName;
     private ParticipantType participantType;
+    private String roleSlotKey;
+    private String roleDisplayName;
 }
