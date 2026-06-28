@@ -71,4 +71,11 @@ También puedes usar [UptimeRobot](https://uptimerobot.com) (gratis, cada 5 min)
 
 ## CORS
 
-Si el front está en otro dominio, configura CORS en producción apuntando a la URL del frontend.
+El front en Vercel llama al back en otro dominio. Configura en Render:
+
+```
+CORS_ALLOWED_ORIGINS=https://albion-front.vercel.app,http://localhost:4200
+```
+
+**Importante:** CORS usa el **origen** (dominio), no la ruta.  
+`https://albion-front.vercel.app/auth/login` → origen permitido: `https://albion-front.vercel.app`
