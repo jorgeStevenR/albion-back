@@ -69,13 +69,14 @@ class AvalonRoleServiceTest {
         setCurrentPlayer(10L);
         AvalonRoleSlot slot = AvalonRoleSlot.builder()
                 .id(1L).avalonRun(openAvalon).roleType(RoleType.CALLER)
+                .slotKey("CALLER").displayName("Caller")
                 .maxPlayers(1).currentPlayers(0).build();
         Player player = Player.builder().id(10L).albionName("Jorge").build();
 
         when(avalonRunRepository.findById(1L)).thenReturn(Optional.of(openAvalon));
         when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
         when(registrationRepository.findActiveByAvalonIdAndPlayerId(1L, 10L)).thenReturn(Optional.empty());
-        when(slotRepository.findByAvalonIdAndRoleTypeForUpdate(1L, RoleType.CALLER)).thenReturn(Optional.of(slot));
+        when(slotRepository.findByAvalonIdAndSlotKeyForUpdate(1L, "CALLER")).thenReturn(Optional.of(slot));
         when(registrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(slotRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(slotRepository.findByAvalonId(1L)).thenReturn(List.of(slot));
@@ -94,13 +95,14 @@ class AvalonRoleServiceTest {
         setCurrentPlayer(10L);
         AvalonRoleSlot slot = AvalonRoleSlot.builder()
                 .id(1L).avalonRun(openAvalon).roleType(RoleType.CALLER)
+                .slotKey("CALLER").displayName("Caller")
                 .maxPlayers(1).currentPlayers(1).build();
         Player player = Player.builder().id(10L).albionName("Jorge").build();
 
         when(avalonRunRepository.findById(1L)).thenReturn(Optional.of(openAvalon));
         when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
         when(registrationRepository.findActiveByAvalonIdAndPlayerId(1L, 10L)).thenReturn(Optional.empty());
-        when(slotRepository.findByAvalonIdAndRoleTypeForUpdate(1L, RoleType.CALLER)).thenReturn(Optional.of(slot));
+        when(slotRepository.findByAvalonIdAndSlotKeyForUpdate(1L, "CALLER")).thenReturn(Optional.of(slot));
 
         assertThrows(RoleFullException.class, () -> avalonRoleService.joinRole(1L, RoleType.CALLER));
         verify(registrationRepository, never()).save(any());
@@ -112,16 +114,17 @@ class AvalonRoleServiceTest {
         setCurrentPlayer(10L);
         AvalonRoleSlot slot = AvalonRoleSlot.builder()
                 .id(1L).avalonRun(openAvalon).roleType(RoleType.DPS)
+                .slotKey("DPS").displayName("DPS")
                 .maxPlayers(5).currentPlayers(3).build();
         Player player = Player.builder().id(10L).albionName("Pedro").build();
         AvalonRoleRegistration registration = AvalonRoleRegistration.builder()
                 .id(99L).avalonRun(openAvalon).player(player)
-                .roleType(RoleType.DPS).status(RegistrationStatus.ACTIVE).build();
+                .roleType(RoleType.DPS).slotKey("DPS").status(RegistrationStatus.ACTIVE).build();
 
         when(avalonRunRepository.findById(1L)).thenReturn(Optional.of(openAvalon));
-        when(registrationRepository.findActiveByAvalonIdAndPlayerIdAndRoleType(1L, 10L, RoleType.DPS))
+        when(registrationRepository.findActiveByAvalonIdAndPlayerIdAndSlotKey(1L, 10L, "DPS"))
                 .thenReturn(Optional.of(registration));
-        when(slotRepository.findByAvalonIdAndRoleTypeForUpdate(1L, RoleType.DPS)).thenReturn(Optional.of(slot));
+        when(slotRepository.findByAvalonIdAndSlotKeyForUpdate(1L, "DPS")).thenReturn(Optional.of(slot));
         when(slotRepository.findByAvalonId(1L)).thenReturn(List.of(slot));
         when(registrationRepository.findActiveByAvalonId(1L)).thenReturn(List.of());
         when(roleBuildTemplateService.findAllAsMap()).thenReturn(Map.of());

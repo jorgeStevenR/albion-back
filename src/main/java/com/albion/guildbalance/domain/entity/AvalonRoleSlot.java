@@ -3,6 +3,7 @@ package com.albion.guildbalance.domain.entity;
 import com.albion.guildbalance.domain.enums.RoleType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +53,7 @@ public class AvalonRoleSlot {
     private List<AvalonSlotBuildItem> buildItems = new ArrayList<>();
 
     @OneToMany(mappedBy = "roleSlot", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 32)
     @Builder.Default
     private List<AvalonSlotSwapItem> swapItems = new ArrayList<>();
 }

@@ -52,7 +52,6 @@ public class RoleBuildTemplateService {
 
     @Transactional(readOnly = true)
     public Map<RoleType, RoleBuildTemplateResponse> findAllAsMap() {
-        ensureDefaultTemplates();
         return repository.findAllByOrderByRoleTypeAsc().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toMap(RoleBuildTemplateResponse::getRoleType, Function.identity()));

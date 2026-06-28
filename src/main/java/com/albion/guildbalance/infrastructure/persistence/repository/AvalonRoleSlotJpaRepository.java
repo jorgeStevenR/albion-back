@@ -14,7 +14,7 @@ import java.util.Optional;
 
 public interface AvalonRoleSlotJpaRepository extends JpaRepository<AvalonRoleSlot, Long> {
 
-    @EntityGraph(attributePaths = {"buildItems", "swapItems"})
+    @EntityGraph(attributePaths = "buildItems")
     List<AvalonRoleSlot> findByAvalonRun_IdOrderBySortOrderAsc(Long avalonId);
 
     Optional<AvalonRoleSlot> findByAvalonRun_IdAndRoleType(Long avalonId, RoleType roleType);
@@ -25,11 +25,11 @@ public interface AvalonRoleSlotJpaRepository extends JpaRepository<AvalonRoleSlo
             @Param("avalonId") Long avalonId,
             @Param("roleType") RoleType roleType);
 
-    @EntityGraph(attributePaths = {"buildItems", "swapItems"})
+    @EntityGraph(attributePaths = "buildItems")
     Optional<AvalonRoleSlot> findByAvalonRun_IdAndSlotKey(Long avalonId, String slotKey);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @EntityGraph(attributePaths = {"buildItems", "swapItems"})
+    @EntityGraph(attributePaths = "buildItems")
     @Query("SELECT s FROM AvalonRoleSlot s WHERE s.avalonRun.id = :avalonId AND s.slotKey = :slotKey")
     Optional<AvalonRoleSlot> findByAvalonIdAndSlotKeyForUpdate(
             @Param("avalonId") Long avalonId,
