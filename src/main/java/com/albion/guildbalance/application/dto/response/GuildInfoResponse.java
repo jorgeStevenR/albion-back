@@ -12,5 +12,4 @@ import lombok.NoArgsConstructor;
 public class GuildInfoResponse {
 
     private String name;
-    private String defaultMemberPasswordHint;
 }

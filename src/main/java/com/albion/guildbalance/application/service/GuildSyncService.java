@@ -62,7 +62,6 @@ public class GuildSyncService {
     public GuildInfoResponse getGuildInfo() {
         return GuildInfoResponse.builder()
                 .name(guildProperties.getName())
-                .defaultMemberPasswordHint(guildProperties.getDefaultMemberPassword())
                 .build();
     }
 

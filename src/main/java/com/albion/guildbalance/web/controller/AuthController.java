@@ -33,11 +33,10 @@ public class AuthController {
     }
 
     @GetMapping("/guild-info")
-    @Operation(summary = "Public guild login info (name and default password hint)")
+    @Operation(summary = "Public guild name for login screen")
     public ResponseEntity<ApiResponse<GuildInfoResponse>> guildInfo() {
         return ResponseEntity.ok(ApiResponse.success(GuildInfoResponse.builder()
                 .name(guildProperties.getName())
-                .defaultMemberPasswordHint(guildProperties.getDefaultMemberPassword())
                 .build()));
     }
 }

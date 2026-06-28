@@ -49,6 +49,15 @@ docker run -p 8080:8080 --env-file .env back-albion
 4. Configura todas las variables de `.env.example` en el panel del hosting.
 5. Puerto: `8080` (o `SERVER_PORT`).
 
+### Supabase + Render
+
+Si ves `max clients reached in session mode - pool_size: 15`:
+
+- En Supabase → **Settings → Database → Connection string**, elige **Transaction pooler** y puerto **6543** (no Session/5432).
+- Pon `DB_POOL_MAX=5` en Render.
+- Cierra el backend local si también apunta a la misma BD.
+- Espera 1–2 min y redeploy (las conexiones zombie de intentos fallidos se liberan solas).
+
 ## CORS
 
 Si el front está en otro dominio, configura CORS en producción apuntando a la URL del frontend.
