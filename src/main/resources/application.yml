@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: albion-guild-balance-system
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:albion_guild}?sslmode=${DB_SSLMODE:prefer}
+    username: ${DB_USER:albion}
+    password: ${DB_PASSWORD:albion_secret}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  port: ${SERVER_PORT:8080}
+
+jwt:
+  secret: ${JWT_SECRET:albion-guild-jwt-secret-key-change-in-production-min-256-bits}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+albion:
+  api:
+    base-url: https://gameinfo.albiononline.com/api/gameinfo
+  guild:
+    name: ${GUILD_NAME:II TEMPUS FUGIT II}
+    default-member-password: ${GUILD_DEFAULT_PASSWORD:tempus123}
+    auto-sync-on-startup: ${GUILD_AUTO_SYNC:true}
+    sync-cache-minutes: ${GUILD_SYNC_CACHE_MINUTES:360}
+    auto-sync-cron: ${GUILD_AUTO_SYNC_CRON:0 0 */6 * * *}
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.albion.guildbalance: INFO
+    org.springframework.security: WARN
