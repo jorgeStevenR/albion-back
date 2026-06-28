@@ -1,5 +1,6 @@
 package com.albion.guildbalance.application.service;
 
+import com.albion.guildbalance.application.dto.request.AvalonMapsRequest;
 import com.albion.guildbalance.application.dto.request.AvalonRunRequest;
 import com.albion.guildbalance.application.dto.request.LootItemRequest;
 import com.albion.guildbalance.application.dto.request.ParticipantRequest;
@@ -118,6 +119,15 @@ public class AvalonRunService {
     }
 
     @Transactional
+    public AvalonRunResponse updateMaps(Long avalonId, AvalonMapsRequest request) {
+        log.info("Updating maps for avalon {}: {} maps, cost {}", avalonId, request.getMapsThrown(), request.getMapsCost());
+        AvalonRun avalonRun = getOpenAvalonOrThrow(avalonId);
+        avalonRun.setMapsThrown(request.getMapsThrown());
+        avalonRun.setMapsCost(request.getMapsCost());
+        return mapper.toAvalonRunResponse(avalonRunRepository.save(avalonRun));
+    }
+
+    @Transactional
     public DistributionCalculationResponse calculateAndFinish(Long avalonId) {
         log.info("Calculating distribution and finishing avalon {}", avalonId);
         AvalonRun avalonRun = getOpenAvalonOrThrow(avalonId);
@@ -129,7 +139,8 @@ public class AvalonRunService {
             throw new BusinessException("No se puede calcular el reparto sin loot");
         }
 
-        BigDecimal totalBalance = BalanceCalculator.calculateTotalBalance(avalonRun.getLootItems());
+        BigDecimal totalBalance = BalanceCalculator.calculateTotalBalance(
+                avalonRun.getLootItems(), avalonRun.getMapsCost());
         double totalWeight = BalanceCalculator.calculateTotalWeight(avalonRun.getParticipants());
 
         List<Distribution> distributions = new ArrayList<>();

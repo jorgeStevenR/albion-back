@@ -1,6 +1,7 @@
 package com.albion.guildbalance.web.controller;
 
 import com.albion.guildbalance.application.dto.response.AlbionItemResponse;
+import com.albion.guildbalance.application.dto.response.ItemCatalogStatusResponse;
 import com.albion.guildbalance.application.service.AlbionItemCatalogService;
 import com.albion.guildbalance.domain.enums.EquipmentSlot;
 import com.albion.guildbalance.web.dto.ApiResponse;
@@ -23,6 +24,12 @@ import java.util.Map;
 public class ItemCatalogController {
 
     private final AlbionItemCatalogService itemCatalogService;
+
+    @GetMapping("/catalog-status")
+    @Operation(summary = "Item catalog load status")
+    public ResponseEntity<ApiResponse<ItemCatalogStatusResponse>> catalogStatus() {
+        return ResponseEntity.ok(ApiResponse.success(itemCatalogService.getCatalogStatus()));
+    }
 
     @GetMapping("/search")
     @Operation(summary = "Search Albion items with filters")

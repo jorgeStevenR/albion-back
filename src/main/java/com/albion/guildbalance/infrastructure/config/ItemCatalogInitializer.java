@@ -16,14 +16,14 @@ public class ItemCatalogInitializer {
 
     @Bean
     CommandLineRunner initItemCatalog() {
-        return args -> {
+        return args -> Thread.startVirtualThread(() -> {
             try {
-                log.info("Loading Albion item catalog (ES names)...");
+                log.info("Loading Albion item catalog (ES names) in background...");
                 int count = itemCatalogService.syncCatalogIfEmpty();
                 log.info("Albion item catalog ready ({} items)", count);
             } catch (Exception ex) {
                 log.warn("Could not sync Albion item catalog on startup: {}", ex.getMessage(), ex);
             }
-        };
+        });
     }
 }

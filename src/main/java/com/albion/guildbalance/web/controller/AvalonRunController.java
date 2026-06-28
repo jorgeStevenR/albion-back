@@ -1,5 +1,6 @@
 package com.albion.guildbalance.web.controller;
 
+import com.albion.guildbalance.application.dto.request.AvalonMapsRequest;
 import com.albion.guildbalance.application.dto.request.AvalonRunRequest;
 import com.albion.guildbalance.application.dto.request.LootItemRequest;
 import com.albion.guildbalance.application.dto.request.ParticipantRequest;
@@ -62,6 +63,15 @@ public class AvalonRunController {
             @Valid @RequestBody LootItemRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Loot added", avalonRunService.addLoot(id, request)));
+    }
+
+    @PutMapping("/{id}/maps")
+    @Operation(summary = "Register maps thrown during the avalon run")
+    public ResponseEntity<ApiResponse<AvalonRunResponse>> updateMaps(
+            @PathVariable Long id,
+            @Valid @RequestBody AvalonMapsRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Mapas registrados", avalonRunService.updateMaps(id, request)));
     }
 
     @PostMapping("/{id}/calculate")

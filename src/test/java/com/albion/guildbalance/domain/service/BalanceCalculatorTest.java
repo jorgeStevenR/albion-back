@@ -16,27 +16,50 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class BalanceCalculatorTest {
 
     @Test
-    @DisplayName("BAG loot applies 20% guild discount")
-    void calculateLootValue_bag_appliesDiscount() {
+    @DisplayName("BAG loot keeps gross value on line (maps deducted at total level)")
+    void calculateLootLineValue_bag_keepsGross() {
         LootItem bag = LootItem.builder()
                 .type(LootType.BAG)
                 .quantity(2)
                 .marketValue(new BigDecimal("1000000"))
                 .build();
 
-        assertEquals(new BigDecimal("1600000.00"), BalanceCalculator.calculateLootValue(bag));
+        assertEquals(new BigDecimal("2000000.00"), BalanceCalculator.calculateLootLineValue(bag));
     }
 
     @Test
     @DisplayName("ITEM loot applies 20% guild discount")
-    void calculateLootValue_item_appliesDiscount() {
+    void calculateLootLineValue_item_appliesDiscount() {
         LootItem item = LootItem.builder()
                 .type(LootType.ITEM)
                 .quantity(1)
                 .marketValue(new BigDecimal("10000000"))
                 .build();
 
-        assertEquals(new BigDecimal("8000000.00"), BalanceCalculator.calculateLootValue(item));
+        assertEquals(new BigDecimal("8000000.00"), BalanceCalculator.calculateLootLineValue(item));
+    }
+
+    @Test
+    @DisplayName("Total balance: bags minus maps + chest after 20%")
+    void calculateTotalBalance_example() {
+        List<LootItem> loot = List.of(
+                LootItem.builder().type(LootType.BAG).quantity(1).marketValue(new BigDecimal("20000000")).build(),
+                LootItem.builder().type(LootType.ITEM).quantity(1).marketValue(new BigDecimal("100000000")).build()
+        );
+
+        BigDecimal total = BalanceCalculator.calculateTotalBalance(loot, new BigDecimal("4000000"));
+
+        assertEquals(new BigDecimal("96000000.00"), total);
+    }
+
+    @Test
+    @DisplayName("Map cost cannot reduce bags below zero")
+    void calculateBagNet_floorAtZero() {
+        List<LootItem> loot = List.of(
+                LootItem.builder().type(LootType.BAG).quantity(1).marketValue(new BigDecimal("3000000")).build()
+        );
+
+        assertEquals(BigDecimal.ZERO.setScale(2), BalanceCalculator.calculateBagNet(loot, new BigDecimal("4000000")));
     }
 
     @Test

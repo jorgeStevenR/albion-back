@@ -22,7 +22,8 @@ public final class ItemSearchNormalizer {
             Pattern.CASE_INSENSITIVE);
 
     private static final Map<String, List<String>> SYNONYM_GROUPS = Map.ofEntries(
-            Map.entry("casco", List.of("casco", "helmet", "helm")),
+            Map.entry("casco", List.of("casco", "helmet", "helm", "head")),
+            Map.entry("head", List.of("head", "helmet", "helm", "casco")),
             Map.entry("capucha", List.of("capucha", "hood", "cowl", "habito")),
             Map.entry("soldado", List.of("soldado", "soldier")),
             Map.entry("mercenario", List.of("mercenario", "mercenary")),
@@ -39,6 +40,7 @@ public final class ItemSearchNormalizer {
             Map.entry("botas", List.of("botas", "boots", "shoes")),
             Map.entry("capa", List.of("capa", "cape")),
             Map.entry("bolsa", List.of("bolsa", "bag", "satchel")),
+            Map.entry("bag", List.of("bag", "bolsa", "satchel")),
             Map.entry("montura", List.of("montura", "mount", "horse", "caballo")),
             Map.entry("comida", List.of("comida", "meal", "food")),
             Map.entry("pocion", List.of("pocion", "potion")),

@@ -45,6 +45,6 @@ public interface EntityMapper {
 
     @Named("calculateEffectiveValue")
     default java.math.BigDecimal calculateEffectiveValue(LootItem loot) {
-        return BalanceCalculator.calculateLootValue(loot);
+        return BalanceCalculator.calculateLootLineValue(loot);
     }
 }

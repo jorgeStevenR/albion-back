@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.BatchSize;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -41,6 +42,14 @@ public class AvalonRun {
     @Column(nullable = false)
     @Builder.Default
     private boolean registrationsOpen = true;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private int mapsThrown = 0;
+
+    @Column(nullable = false, precision = 19, scale = 2)
+    @Builder.Default
+    private BigDecimal mapsCost = BigDecimal.ZERO;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_id")

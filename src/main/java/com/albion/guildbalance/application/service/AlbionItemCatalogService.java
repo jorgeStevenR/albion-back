@@ -1,6 +1,7 @@
 package com.albion.guildbalance.application.service;
 
 import com.albion.guildbalance.application.dto.response.AlbionItemResponse;
+import com.albion.guildbalance.application.dto.response.ItemCatalogStatusResponse;
 import com.albion.guildbalance.domain.entity.AlbionItem;
 import com.albion.guildbalance.domain.enums.EquipmentSlot;
 import com.albion.guildbalance.domain.util.BuildItemFilter;
@@ -29,6 +30,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @Service
@@ -37,12 +39,15 @@ public class AlbionItemCatalogService {
 
     private static final String ITEMS_JSON_URL =
             "https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master/formatted/items.json";
-    private static final int MIN_EXPECTED_ITEMS = 8000;
+    /** Real catalog after gear filter is ~7.5k items — do not force re-sync above this. */
+    private static final int MIN_EXPECTED_ITEMS = 5000;
+    private static final int MIN_SEARCHABLE_ITEMS = 500;
 
     private final AlbionItemJpaRepository repository;
     private final AlbionItemCatalogSyncHelper syncHelper;
     private final ObjectMapper objectMapper;
     private final Object syncLock = new Object();
+    private final AtomicBoolean backgroundSyncScheduled = new AtomicBoolean(false);
     private volatile boolean syncInProgress;
 
     @Value("${albion.items.render-base-url:https://render.albiononline.com/v1/item}")
@@ -55,7 +60,17 @@ public class AlbionItemCatalogService {
             Integer enchantment,
             Integer quality,
             int limit) {
-        ensureCatalogFresh();
+        long count = repository.count();
+        if (count == 0 && syncInProgress) {
+            log.debug("Item catalog sync in progress — search skipped");
+            return List.of();
+        }
+        if (count == 0) {
+            scheduleBackgroundSyncIfNeeded();
+            log.warn("Item catalog empty — search skipped (background sync scheduled)");
+            return List.of();
+        }
+
         ItemSearchQuery parsed = ItemSearchNormalizer.parse(query, tier, enchantment, quality);
         int capped = Math.min(Math.max(limit, 1), maxLimit(parsed, slot));
 
@@ -89,24 +104,51 @@ public class AlbionItemCatalogService {
         return 50;
     }
 
-    public void ensureCatalogFresh() {
+    public ItemCatalogStatusResponse getCatalogStatus() {
         long count = repository.count();
-        if (count < MIN_EXPECTED_ITEMS
-                || repository.countMissingSpanishNames() > 0
-                || repository.countStaleCatalog() > 0
-                || repository.countCraftingArtifacts() > 0
-                || !repository.existsById("T8_2H_HAMMER")) {
-            syncCatalog();
+        if (count == 0) {
+            scheduleBackgroundSyncIfNeeded();
         }
+        return ItemCatalogStatusResponse.builder()
+                .itemCount(count)
+                .ready(count >= MIN_SEARCHABLE_ITEMS)
+                .syncInProgress(syncInProgress)
+                .build();
+    }
+
+    public void scheduleBackgroundSyncIfNeeded() {
+        if (!backgroundSyncScheduled.compareAndSet(false, true)) {
+            return;
+        }
+        Thread.startVirtualThread(() -> {
+            try {
+                log.info("Background Albion item catalog sync started");
+                syncCatalogIfEmpty();
+            } catch (Exception ex) {
+                log.error("Background Albion item catalog sync failed", ex);
+                backgroundSyncScheduled.set(false);
+            }
+        });
+    }
+
+    public void ensureCatalogFresh() {
+        if (!needsResync()) {
+            return;
+        }
+        syncCatalog();
+    }
+
+    private boolean needsResync() {
+        long count = repository.count();
+        if (count < MIN_SEARCHABLE_ITEMS) {
+            return true;
+        }
+        return !repository.existsById("T8_2H_HAMMER");
     }
 
     public int syncCatalogIfEmpty() {
         long count = repository.count();
-        if (count >= MIN_EXPECTED_ITEMS
-                && repository.countMissingSpanishNames() == 0
-                && repository.countStaleCatalog() == 0
-                && repository.countCraftingArtifacts() == 0
-                && repository.existsById("T8_2H_HAMMER")) {
+        if (!needsResync()) {
             log.info("Albion item catalog already loaded ({} items)", count);
             return (int) count;
         }
@@ -133,7 +175,6 @@ public class AlbionItemCatalogService {
 
     private int doSyncCatalog() {
         log.info("Syncing Albion item catalog from ao-bin-dumps (JSON + ES names)...");
-        syncHelper.clearAll();
 
         String body = RestClient.create()
                 .get()
@@ -146,6 +187,11 @@ public class AlbionItemCatalogService {
         }
 
         List<AlbionItem> items = parseCatalogJson(body);
+        if (items.isEmpty()) {
+            throw new IllegalStateException("Parsed Albion items catalog is empty");
+        }
+
+        syncHelper.clearAll();
         int imported = syncHelper.saveAllInBatches(items);
         log.info("Albion item catalog synced: {} build-related items", imported);
         return imported;
