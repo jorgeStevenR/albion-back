@@ -16,19 +16,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class BalanceCalculatorTest {
 
     @Test
-    @DisplayName("BAG loot uses full market value")
-    void calculateLootValue_bag_usesFullValue() {
+    @DisplayName("BAG loot applies 20% guild discount")
+    void calculateLootValue_bag_appliesDiscount() {
         LootItem bag = LootItem.builder()
                 .type(LootType.BAG)
                 .quantity(2)
                 .marketValue(new BigDecimal("1000000"))
                 .build();
 
-        assertEquals(new BigDecimal("2000000.00"), BalanceCalculator.calculateLootValue(bag));
+        assertEquals(new BigDecimal("1600000.00"), BalanceCalculator.calculateLootValue(bag));
     }
 
     @Test
-    @DisplayName("ITEM loot applies 20% discount")
+    @DisplayName("ITEM loot applies 20% guild discount")
     void calculateLootValue_item_appliesDiscount() {
         LootItem item = LootItem.builder()
                 .type(LootType.ITEM)

@@ -41,8 +41,9 @@ public class GuildStatsService {
                 .atStartOfDay();
 
         BigDecimal treasury = saleRepository.sumAllFinalPrices();
-        BigDecimal unsoldRaw = lootItemRepository.sumMarketValueBySaleStatus(LootSaleStatus.UNSOLD);
-        BigDecimal unsoldEffective = unsoldRaw.multiply(BigDecimal.valueOf(0.8));
+        BigDecimal unsoldItems = lootItemRepository.sumMarketValueBySaleStatus(LootSaleStatus.UNSOLD);
+        BigDecimal unsoldBags = lootItemRepository.sumMarketValueBySaleStatus(LootSaleStatus.NOT_APPLICABLE);
+        BigDecimal unsoldEffective = unsoldItems.add(unsoldBags).multiply(BigDecimal.valueOf(0.8));
 
         List<Object[]> callerRows = registrationRepository.countAvalonsByPlayerForRole(
                 RoleType.CALLER, RegistrationStatus.ACTIVE);

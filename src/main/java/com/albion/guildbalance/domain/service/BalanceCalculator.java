@@ -2,7 +2,6 @@ package com.albion.guildbalance.domain.service;
 
 import com.albion.guildbalance.domain.entity.AvalonParticipant;
 import com.albion.guildbalance.domain.entity.LootItem;
-import com.albion.guildbalance.domain.enums.LootType;
 import com.albion.guildbalance.domain.enums.ParticipantType;
 import lombok.experimental.UtilityClass;
 
@@ -13,15 +12,12 @@ import java.util.List;
 @UtilityClass
 public class BalanceCalculator {
 
-    private static final BigDecimal ITEM_DISCOUNT = new BigDecimal("0.80");
+    private static final BigDecimal LOOT_NET_MULTIPLIER = new BigDecimal("0.80");
     private static final int SCALE = 2;
 
     public BigDecimal calculateLootValue(LootItem loot) {
         BigDecimal total = loot.getMarketValue().multiply(BigDecimal.valueOf(loot.getQuantity()));
-        if (loot.getType() == LootType.ITEM) {
-            return total.multiply(ITEM_DISCOUNT).setScale(SCALE, RoundingMode.HALF_UP);
-        }
-        return total.setScale(SCALE, RoundingMode.HALF_UP);
+        return total.multiply(LOOT_NET_MULTIPLIER).setScale(SCALE, RoundingMode.HALF_UP);
     }
 
     public BigDecimal calculateTotalBalance(List<LootItem> lootItems) {
