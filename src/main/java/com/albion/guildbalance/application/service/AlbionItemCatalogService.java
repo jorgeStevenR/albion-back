@@ -22,9 +22,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+
+import java.time.Duration;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -40,8 +43,8 @@ public class AlbionItemCatalogService {
     private static final String ITEMS_JSON_URL =
             "https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master/formatted/items.json";
     /** Real catalog after gear filter is ~7.5k items — do not force re-sync above this. */
-    private static final int MIN_EXPECTED_ITEMS = 5000;
     private static final int MIN_SEARCHABLE_ITEMS = 500;
+    private static final int CATALOG_DOWNLOAD_MAX_ATTEMPTS = 3;
 
     private final AlbionItemJpaRepository repository;
     private final AlbionItemCatalogSyncHelper syncHelper;
@@ -126,16 +129,10 @@ public class AlbionItemCatalogService {
                 syncCatalogIfEmpty();
             } catch (Exception ex) {
                 log.error("Background Albion item catalog sync failed", ex);
+            } finally {
                 backgroundSyncScheduled.set(false);
             }
         });
-    }
-
-    public void ensureCatalogFresh() {
-        if (!needsResync()) {
-            return;
-        }
-        syncCatalog();
     }
 
     private boolean needsResync() {
@@ -167,6 +164,13 @@ public class AlbionItemCatalogService {
             syncInProgress = true;
             try {
                 return doSyncCatalog();
+            } catch (RuntimeException ex) {
+                long existing = repository.count();
+                if (existing >= MIN_SEARCHABLE_ITEMS) {
+                    log.error("Catalog sync failed — keeping existing {} items", existing, ex);
+                    return (int) existing;
+                }
+                throw ex;
             } finally {
                 syncInProgress = false;
             }
@@ -176,16 +180,7 @@ public class AlbionItemCatalogService {
     private int doSyncCatalog() {
         log.info("Syncing Albion item catalog from ao-bin-dumps (JSON + ES names)...");
 
-        String body = RestClient.create()
-                .get()
-                .uri(ITEMS_JSON_URL)
-                .retrieve()
-                .body(String.class);
-
-        if (body == null || body.isBlank()) {
-            throw new IllegalStateException("Failed to download Albion items catalog");
-        }
-
+        String body = downloadCatalogJson();
         List<AlbionItem> items = parseCatalogJson(body);
         if (items.isEmpty()) {
             throw new IllegalStateException("Parsed Albion items catalog is empty");
@@ -195,6 +190,52 @@ public class AlbionItemCatalogService {
         int imported = syncHelper.saveAllInBatches(items);
         log.info("Albion item catalog synced: {} build-related items", imported);
         return imported;
+    }
+
+    private String downloadCatalogJson() {
+        RestClient client = RestClient.builder()
+                .requestFactory(catalogRequestFactory())
+                .build();
+
+        RuntimeException lastFailure = null;
+        for (int attempt = 1; attempt <= CATALOG_DOWNLOAD_MAX_ATTEMPTS; attempt++) {
+            try {
+                String body = client.get()
+                        .uri(ITEMS_JSON_URL)
+                        .retrieve()
+                        .body(String.class);
+                if (body != null && !body.isBlank()) {
+                    return body;
+                }
+                lastFailure = new IllegalStateException("Empty response from Albion items catalog");
+            } catch (ResourceAccessException ex) {
+                lastFailure = ex;
+                log.warn("Catalog download attempt {}/{} failed: {}", attempt, CATALOG_DOWNLOAD_MAX_ATTEMPTS, ex.getMessage());
+            }
+
+            if (attempt < CATALOG_DOWNLOAD_MAX_ATTEMPTS) {
+                sleepQuietly(2_000L * attempt);
+            }
+        }
+
+        throw lastFailure != null
+                ? lastFailure
+                : new IllegalStateException("Failed to download Albion items catalog");
+    }
+
+    private static SimpleClientHttpRequestFactory catalogRequestFactory() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(30));
+        factory.setReadTimeout(Duration.ofSeconds(120));
+        return factory;
+    }
+
+    private static void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private List<AlbionItem> parseCatalogJson(String body) {
