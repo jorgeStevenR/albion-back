@@ -12,4 +12,6 @@ public interface AvalonRunRepositoryPort {
     Optional<AvalonRun> findById(Long id);
 
     List<AvalonRun> findAll();
+
+    Optional<AvalonRun> findLatestScheduledByCreator(Long creatorId);
 }

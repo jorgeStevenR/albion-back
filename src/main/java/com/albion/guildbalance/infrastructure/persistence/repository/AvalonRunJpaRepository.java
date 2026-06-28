@@ -23,4 +23,6 @@ public interface AvalonRunJpaRepository extends JpaRepository<AvalonRun, Long> {
     long countByStatus(AvalonStatus status);
 
     long countByDateGreaterThanEqual(LocalDate since);
+
+    Optional<AvalonRun> findFirstByCreatedByIdAndScheduledAtIsNotNullOrderByScheduledAtDesc(Long creatorId);
 }

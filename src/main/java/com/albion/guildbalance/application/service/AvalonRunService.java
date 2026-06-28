@@ -38,6 +38,7 @@ public class AvalonRunService {
     private final AvalonRoleService avalonRoleService;
     private final LootItemJpaRepository lootItemRepository;
     private final EntityMapper mapper;
+    private final AvalonPingScheduleValidator pingScheduleValidator;
 
     @Transactional(readOnly = true)
     public List<AvalonRunResponse> findAll() {
@@ -55,6 +56,8 @@ public class AvalonRunService {
         log.info("Creating avalon run in zone: {}", request.getZone());
         Player creator = playerRepository.findById(SecurityUtils.getCurrentPlayer().getPlayerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Player not found"));
+
+        pingScheduleValidator.validate(request.getScheduledAt(), creator.getId());
 
         AvalonRun avalonRun = AvalonRun.builder()
                 .date(request.getDate())

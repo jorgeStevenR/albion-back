@@ -9,6 +9,7 @@ import com.albion.guildbalance.application.dto.response.PingTemplateResponse;
 import com.albion.guildbalance.application.dto.response.PingTemplateRoleSlotResponse;
 import com.albion.guildbalance.application.dto.response.RoleBuildSlotResponse;
 import com.albion.guildbalance.application.dto.response.SwapItemResponse;
+import com.albion.guildbalance.application.exception.BusinessException;
 import com.albion.guildbalance.application.exception.ResourceNotFoundException;
 import com.albion.guildbalance.application.port.PlayerRepositoryPort;
 import com.albion.guildbalance.domain.entity.AvalonPingTemplate;
@@ -109,7 +110,10 @@ public class PingTemplateService {
         }
 
         LocalDateTime scheduledAt = request != null ? request.getScheduledAt() : null;
-        LocalDate date = scheduledAt != null ? scheduledAt.toLocalDate() : LocalDate.now();
+        if (scheduledAt == null) {
+            throw new BusinessException("La fecha y hora del ping son obligatorias");
+        }
+        LocalDate date = scheduledAt.toLocalDate();
 
         var avalonResponse = avalonRunService.create(AvalonRunRequest.builder()
                 .date(date)

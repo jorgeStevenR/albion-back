@@ -33,4 +33,9 @@ public class AvalonRunRepositoryAdapter implements AvalonRunRepositoryPort {
     public List<AvalonRun> findAll() {
         return repository.findAllWithParticipants();
     }
+
+    @Override
+    public Optional<AvalonRun> findLatestScheduledByCreator(Long creatorId) {
+        return repository.findFirstByCreatedByIdAndScheduledAtIsNotNullOrderByScheduledAtDesc(creatorId);
+    }
 }
