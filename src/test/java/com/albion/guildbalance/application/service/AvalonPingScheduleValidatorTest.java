@@ -32,23 +32,23 @@ class AvalonPingScheduleValidatorTest {
     }
 
     @Test
-    void rejectsSecondPingWithinTwoHoursForSameCreator() {
+    void rejectsSecondPingWithinOneHourForSameCreator() {
         LocalDateTime previous = LocalDateTime.now().plusHours(3);
         when(avalonRunRepository.findLatestScheduledByCreator(1L)).thenReturn(Optional.of(
                 AvalonRun.builder().scheduledAt(previous).createdBy(Player.builder().id(1L).build()).build()
         ));
 
         assertThrows(Exception.class, () ->
-                validator.validate(previous.plusHours(1), 1L));
+                validator.validate(previous.plusMinutes(30), 1L));
     }
 
     @Test
-    void allowsSecondPingAfterTwoHoursForSameCreator() {
+    void allowsSecondPingAfterOneHourForSameCreator() {
         LocalDateTime previous = LocalDateTime.now().plusHours(3);
         when(avalonRunRepository.findLatestScheduledByCreator(1L)).thenReturn(Optional.of(
                 AvalonRun.builder().scheduledAt(previous).build()
         ));
 
-        assertDoesNotThrow(() -> validator.validate(previous.plusHours(2), 1L));
+        assertDoesNotThrow(() -> validator.validate(previous.plusHours(1), 1L));
     }
 }

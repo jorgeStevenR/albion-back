@@ -15,7 +15,7 @@ import java.time.format.DateTimeFormatter;
 public class AvalonPingScheduleValidator {
 
     private static final Duration MIN_LEAD_TIME = Duration.ofHours(1);
-    private static final Duration MIN_GAP_SAME_CREATOR = Duration.ofHours(2);
+    private static final Duration MIN_GAP_SAME_CREATOR = Duration.ofHours(1);
     private static final DateTimeFormatter DISPLAY = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private final AvalonRunRepositoryPort avalonRunRepository;
@@ -38,7 +38,7 @@ public class AvalonPingScheduleValidator {
             LocalDateTime nextAllowed = previous.plus(MIN_GAP_SAME_CREATOR);
             if (scheduledAt.isBefore(nextAllowed)) {
                 throw new BusinessException(
-                        "Debes esperar 2 horas entre tus pings. Tu último ping fue el "
+                        "Debes esperar 1 hora entre tus pings. Tu último ping fue el "
                                 + previous.format(DISPLAY)
                                 + "; el siguiente puede ser desde el "
                                 + nextAllowed.format(DISPLAY));
