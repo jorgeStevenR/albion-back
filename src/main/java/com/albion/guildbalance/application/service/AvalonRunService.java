@@ -141,6 +141,9 @@ public class AvalonRunService {
 
     @Transactional
     public AvalonRunResponse addChest(Long avalonId, BagGrossRequest request) {
+        if (request.getGrossValue() == null || request.getGrossValue().compareTo(BigDecimal.ONE) < 0) {
+            throw new BusinessException("El valor bruto del cofre debe ser al menos 1");
+        }
         AvalonRun avalonRun = getOpenAvalonOrThrow(avalonId);
         long chestNumber = avalonRun.getLootItems().stream()
                 .filter(l -> l.getType() == LootType.CHEST || l.getType() == LootType.ITEM)
@@ -149,7 +152,7 @@ public class AvalonRunService {
         LootItem lootItem = LootItem.builder()
                 .avalonRun(avalonRun)
                 .name("Cofre " + chestNumber)
-                .type(LootType.CHEST)
+                .type(LootType.ITEM)
                 .quantity(1)
                 .marketValue(request.getGrossValue())
                 .saleStatus(LootSaleStatus.UNSOLD)
