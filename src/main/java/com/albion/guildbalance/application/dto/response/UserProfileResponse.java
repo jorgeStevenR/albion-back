@@ -10,11 +10,12 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuthResponse {
+public class UserProfileResponse {
 
-    private String token;
     private Long playerId;
     private String albionName;
+    private String discordName;
+    private String rank;
     private PlayerRole role;
     private boolean mustChangePassword;
 }

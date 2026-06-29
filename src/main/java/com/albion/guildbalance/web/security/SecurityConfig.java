@@ -51,6 +51,8 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    private final MustChangePasswordFilter mustChangePasswordFilter;
+
 
 
     @Bean
@@ -67,7 +69,13 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+
+                        .requestMatchers(HttpMethod.GET, "/api/auth/guild-info").permitAll()
+
+                        .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+
+                        .requestMatchers(HttpMethod.POST, "/api/auth/change-password").authenticated()
 
                         .requestMatchers("/api/health").permitAll()
 
@@ -137,7 +145,9 @@ public class SecurityConfig {
 
                 )
 
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+
+                .addFilterAfter(mustChangePasswordFilter, JwtAuthenticationFilter.class);
 
 
 

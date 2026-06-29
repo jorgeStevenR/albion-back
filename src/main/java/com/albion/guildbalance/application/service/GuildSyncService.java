@@ -185,6 +185,7 @@ public class GuildSyncService {
                 .password(passwordEncoder.encode(guildProperties.getDefaultMemberPassword()))
                 .guild(guild)
                 .active(true)
+                .mustChangePassword(true)
                 .build();
 
         Player saved = playerRepository.save(player);

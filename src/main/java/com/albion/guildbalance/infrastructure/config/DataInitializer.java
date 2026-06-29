@@ -42,6 +42,7 @@ public class DataInitializer {
                 .role(PlayerRole.ADMIN)
                 .password(passwordEncoder.encode(DEFAULT_PASSWORD))
                 .active(true)
+                .mustChangePassword(true)
                 .build();
         Player saved = playerRepository.save(admin);
         walletRepository.save(Wallet.builder()

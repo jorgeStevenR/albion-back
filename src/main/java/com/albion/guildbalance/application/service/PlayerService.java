@@ -53,6 +53,7 @@ public class PlayerService {
                 .role(request.getRole())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .active(true)
+                .mustChangePassword(true)
                 .build();
 
         Player saved = playerRepository.save(player);
@@ -81,6 +82,7 @@ public class PlayerService {
 
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             player.setPassword(passwordEncoder.encode(request.getPassword()));
+            player.setMustChangePassword(true);
         }
 
         return mapper.toPlayerResponse(playerRepository.save(player));

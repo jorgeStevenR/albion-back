@@ -42,8 +42,8 @@ public class SaleService {
         LootItem lootItem = lootItemRepository.findById(request.getLootItemId())
                 .orElseThrow(() -> new ResourceNotFoundException("Loot item not found with id: " + request.getLootItemId()));
 
-        if (lootItem.getType() != LootType.ITEM) {
-            throw new BusinessException("Only ITEM type loot can be sold");
+        if (lootItem.getType() != LootType.CHEST && lootItem.getType() != LootType.ITEM) {
+            throw new BusinessException("Solo se pueden vender cofres");
         }
         if (lootItem.getSaleStatus() == LootSaleStatus.SOLD) {
             throw new BusinessException("This loot item has already been sold");

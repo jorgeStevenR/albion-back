@@ -117,22 +117,8 @@ public class AvalonRunService {
 
     @Transactional
     public AvalonRunResponse addLoot(Long avalonId, LootItemRequest request) {
-        log.info("Adding loot '{}' to avalon {}", request.getName(), avalonId);
-        AvalonRun avalonRun = getOpenAvalonOrThrow(avalonId);
-
-        LootItem lootItem = LootItem.builder()
-                .avalonRun(avalonRun)
-                .name(request.getName())
-                .type(request.getType())
-                .quantity(request.getQuantity())
-                .marketValue(request.getMarketValue())
-                .saleStatus(request.getType() == LootType.BAG
-                        ? LootSaleStatus.NOT_APPLICABLE
-                        : LootSaleStatus.UNSOLD)
-                .build();
-
-        avalonRun.getLootItems().add(lootItem);
-        return mapper.toAvalonRunResponse(avalonRunRepository.save(avalonRun));
+        throw new BusinessException(
+                "Registra bolsitas del piso con PUT /loot/bags y cada cofre con POST /loot/chests");
     }
 
     @Transactional
@@ -157,13 +143,13 @@ public class AvalonRunService {
     public AvalonRunResponse addChest(Long avalonId, BagGrossRequest request) {
         AvalonRun avalonRun = getOpenAvalonOrThrow(avalonId);
         long chestNumber = avalonRun.getLootItems().stream()
-                .filter(l -> l.getType() == LootType.ITEM)
+                .filter(l -> l.getType() == LootType.CHEST || l.getType() == LootType.ITEM)
                 .count() + 1;
 
         LootItem lootItem = LootItem.builder()
                 .avalonRun(avalonRun)
                 .name("Cofre " + chestNumber)
-                .type(LootType.ITEM)
+                .type(LootType.CHEST)
                 .quantity(1)
                 .marketValue(request.getGrossValue())
                 .saleStatus(LootSaleStatus.UNSOLD)

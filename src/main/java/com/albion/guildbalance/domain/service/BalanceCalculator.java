@@ -22,10 +22,14 @@ public class BalanceCalculator {
                 .setScale(SCALE, RoundingMode.HALF_UP);
     }
 
-    /** Effective value shown per loot line (bags = gross, chest items = after 20% guild cut). */
+    public boolean isChest(LootType type) {
+        return type == LootType.CHEST || type == LootType.ITEM;
+    }
+
+    /** Effective value shown per loot line (bags = gross, chests = after 20% guild cut). */
     public BigDecimal calculateLootLineValue(LootItem loot) {
         BigDecimal gross = calculateGrossValue(loot);
-        if (loot.getType() == LootType.ITEM) {
+        if (isChest(loot.getType())) {
             return gross.multiply(LOOT_NET_MULTIPLIER).setScale(SCALE, RoundingMode.HALF_UP);
         }
         return gross;
@@ -39,9 +43,17 @@ public class BalanceCalculator {
                 .setScale(SCALE, RoundingMode.HALF_UP);
     }
 
+    public BigDecimal calculateChestGross(List<LootItem> lootItems) {
+        return lootItems.stream()
+                .filter(loot -> isChest(loot.getType()))
+                .map(BalanceCalculator::calculateGrossValue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(SCALE, RoundingMode.HALF_UP);
+    }
+
     public BigDecimal calculateChestNet(List<LootItem> lootItems) {
         return lootItems.stream()
-                .filter(loot -> loot.getType() == LootType.ITEM)
+                .filter(loot -> isChest(loot.getType()))
                 .map(BalanceCalculator::calculateLootLineValue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(SCALE, RoundingMode.HALF_UP);
