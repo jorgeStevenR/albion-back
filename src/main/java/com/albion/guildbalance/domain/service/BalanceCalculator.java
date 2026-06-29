@@ -59,17 +59,25 @@ public class BalanceCalculator {
                 .setScale(SCALE, RoundingMode.HALF_UP);
     }
 
-    public BigDecimal calculateBagNet(List<LootItem> lootItems, BigDecimal mapsCost) {
-        BigDecimal cost = mapsCost != null ? mapsCost : BigDecimal.ZERO;
-        BigDecimal net = calculateBagGross(lootItems).subtract(cost);
+    /** Total silver spent on maps = quantity × cost per map. */
+    public BigDecimal calculateMapsTotalCost(int mapsThrown, BigDecimal costPerMap) {
+        if (mapsThrown <= 0 || costPerMap == null || costPerMap.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO.setScale(SCALE, RoundingMode.HALF_UP);
+        }
+        return costPerMap.multiply(BigDecimal.valueOf(mapsThrown)).setScale(SCALE, RoundingMode.HALF_UP);
+    }
+
+    public BigDecimal calculateBagNet(List<LootItem> lootItems, int mapsThrown, BigDecimal costPerMap) {
+        BigDecimal mapsTotal = calculateMapsTotalCost(mapsThrown, costPerMap);
+        BigDecimal net = calculateBagGross(lootItems).subtract(mapsTotal);
         if (net.compareTo(BigDecimal.ZERO) < 0) {
             return BigDecimal.ZERO.setScale(SCALE, RoundingMode.HALF_UP);
         }
         return net.setScale(SCALE, RoundingMode.HALF_UP);
     }
 
-    public BigDecimal calculateTotalBalance(List<LootItem> lootItems, BigDecimal mapsCost) {
-        return calculateBagNet(lootItems, mapsCost)
+    public BigDecimal calculateTotalBalance(List<LootItem> lootItems, int mapsThrown, BigDecimal costPerMap) {
+        return calculateBagNet(lootItems, mapsThrown, costPerMap)
                 .add(calculateChestNet(lootItems))
                 .setScale(SCALE, RoundingMode.HALF_UP);
     }

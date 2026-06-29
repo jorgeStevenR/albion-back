@@ -206,15 +206,17 @@ public class AvalonRunService {
             throw new BusinessException("No se puede calcular el reparto sin loot");
         }
 
-        BigDecimal mapsCost = avalonRun.getMapsCost() != null ? avalonRun.getMapsCost() : BigDecimal.ZERO;
-        BigDecimal bagNet = BalanceCalculator.calculateBagNet(avalonRun.getLootItems(), mapsCost);
+        int mapsThrown = avalonRun.getMapsThrown();
+        BigDecimal costPerMap = avalonRun.getMapsCost() != null ? avalonRun.getMapsCost() : BigDecimal.ZERO;
+        BigDecimal mapsTotal = BalanceCalculator.calculateMapsTotalCost(mapsThrown, costPerMap);
+        BigDecimal bagNet = BalanceCalculator.calculateBagNet(avalonRun.getLootItems(), mapsThrown, costPerMap);
         BigDecimal chestNet = BalanceCalculator.calculateChestNet(avalonRun.getLootItems());
         BigDecimal totalBalance = bagNet.add(chestNet).setScale(2, RoundingMode.HALF_UP);
         double totalWeight = BalanceCalculator.calculateTotalWeight(avalonRun.getParticipants());
 
         log.info(
-                "Avalon {} reparto: bolsas netas {} (mapas -{}), cofres netos {}, total {}",
-                avalonId, bagNet, mapsCost, chestNet, totalBalance);
+                "Avalon {} reparto: bolsas netas {} ({} mapas × {} = -{}), cofres netos {}, total {}",
+                avalonId, bagNet, mapsThrown, costPerMap, mapsTotal, chestNet, totalBalance);
 
         List<Distribution> distributions = new ArrayList<>();
         for (AvalonParticipant participant : avalonRun.getParticipants()) {
@@ -242,7 +244,7 @@ public class AvalonRunService {
                 .totalBalance(totalBalance)
                 .bagNet(bagNet)
                 .chestNet(chestNet)
-                .mapsDeducted(mapsCost)
+                .mapsDeducted(mapsTotal)
                 .totalWeight(totalWeight)
                 .distributions(distributionResponses)
                 .build();
@@ -320,8 +322,10 @@ public class AvalonRunService {
         if (response.getLootItems() == null) {
             return;
         }
-        BigDecimal mapsCost = response.getMapsCost() != null ? response.getMapsCost() : BigDecimal.ZERO;
-        if (mapsCost.compareTo(BigDecimal.ZERO) <= 0) {
+        int mapsThrown = response.getMapsThrown();
+        BigDecimal costPerMap = response.getMapsCost() != null ? response.getMapsCost() : BigDecimal.ZERO;
+        BigDecimal mapsTotal = BalanceCalculator.calculateMapsTotalCost(mapsThrown, costPerMap);
+        if (mapsTotal.compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
         for (LootItemResponse item : response.getLootItems()) {
@@ -329,7 +333,7 @@ public class AvalonRunService {
                 continue;
             }
             BigDecimal gross = item.getMarketValue().multiply(BigDecimal.valueOf(item.getQuantity()));
-            BigDecimal net = gross.subtract(mapsCost);
+            BigDecimal net = gross.subtract(mapsTotal);
             if (net.compareTo(BigDecimal.ZERO) < 0) {
                 net = BigDecimal.ZERO;
             }

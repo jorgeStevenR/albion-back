@@ -47,9 +47,17 @@ class BalanceCalculatorTest {
                 LootItem.builder().type(LootType.ITEM).quantity(1).marketValue(new BigDecimal("100000000")).build()
         );
 
-        BigDecimal total = BalanceCalculator.calculateTotalBalance(loot, new BigDecimal("4000000"));
+        BigDecimal total = BalanceCalculator.calculateTotalBalance(loot, 4, new BigDecimal("1000000"));
 
         assertEquals(new BigDecimal("96000000.00"), total);
+    }
+
+    @Test
+    @DisplayName("Maps total = quantity × cost per map")
+    void calculateMapsTotalCost_multipliesQuantity() {
+        assertEquals(
+                new BigDecimal("4000000.00"),
+                BalanceCalculator.calculateMapsTotalCost(4, new BigDecimal("1000000")));
     }
 
     @Test
@@ -59,7 +67,7 @@ class BalanceCalculatorTest {
                 LootItem.builder().type(LootType.BAG).quantity(1).marketValue(new BigDecimal("3000000")).build()
         );
 
-        assertEquals(BigDecimal.ZERO.setScale(2), BalanceCalculator.calculateBagNet(loot, new BigDecimal("4000000")));
+        assertEquals(BigDecimal.ZERO.setScale(2), BalanceCalculator.calculateBagNet(loot, 4, new BigDecimal("1000000")));
     }
 
     @Test

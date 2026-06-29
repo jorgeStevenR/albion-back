@@ -47,6 +47,7 @@ public class AvalonRun {
     @Builder.Default
     private int mapsThrown = 0;
 
+    /** Silver cost per map; total deduction = mapsThrown × mapsCost. */
     @Column(nullable = false, precision = 19, scale = 2)
     @Builder.Default
     private BigDecimal mapsCost = BigDecimal.ZERO;

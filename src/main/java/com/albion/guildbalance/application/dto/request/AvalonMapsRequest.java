@@ -19,6 +19,7 @@ public class AvalonMapsRequest {
     @Min(0)
     private int mapsThrown;
 
+    /** Cost per map in silver; total deducted from bags = mapsThrown × mapsCost. */
     @NotNull
     @DecimalMin("0.00")
     private BigDecimal mapsCost;
