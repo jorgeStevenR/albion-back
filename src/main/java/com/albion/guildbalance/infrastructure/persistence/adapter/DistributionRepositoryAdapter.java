@@ -23,4 +23,9 @@ public class DistributionRepositoryAdapter implements DistributionRepositoryPort
     public List<Distribution> findByPlayerId(Long playerId) {
         return repository.findByPlayer_Id(playerId);
     }
+
+    @Override
+    public long countByAvalonRunId(Long avalonRunId) {
+        return repository.countByAvalonRun_Id(avalonRunId);
+    }
 }

@@ -13,6 +13,8 @@ import java.util.List;
 
 public interface DistributionJpaRepository extends JpaRepository<Distribution, Long> {
 
+    long countByAvalonRun_Id(Long avalonRunId);
+
     @EntityGraph(attributePaths = {"avalonRun", "player"})
     List<Distribution> findByPlayer_Id(Long playerId);
 

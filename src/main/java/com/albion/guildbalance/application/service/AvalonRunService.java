@@ -25,12 +25,14 @@ import com.albion.guildbalance.infrastructure.persistence.repository.LootItemJpa
 import com.albion.guildbalance.web.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -130,22 +132,10 @@ public class AvalonRunService {
     public AvalonRunResponse setBagGross(Long avalonId, BagGrossRequest request) {
         log.info("Setting bag gross for avalon {}: {}", avalonId, request.getGrossValue());
         AvalonRun avalonRun = getOpenAvalonOrThrow(avalonId);
-        List<LootItem> existingBags = avalonRun.getLootItems().stream()
-                .filter(l -> l.getType() == LootType.BAG)
-                .toList();
+        lootItemRepository.deleteByAvalonRun_IdAndType(avalonId, LootType.BAG);
+        avalonRun.getLootItems().removeIf(l -> l.getType() == LootType.BAG);
 
-        if (request.getGrossValue().compareTo(BigDecimal.ZERO) <= 0) {
-            avalonRun.getLootItems().removeIf(l -> l.getType() == LootType.BAG);
-        } else if (!existingBags.isEmpty()) {
-            LootItem bag = existingBags.getFirst();
-            bag.setName("Bolsitas del piso");
-            bag.setMarketValue(request.getGrossValue());
-            bag.setQuantity(1);
-            bag.setSaleStatus(LootSaleStatus.NOT_APPLICABLE);
-            for (int i = 1; i < existingBags.size(); i++) {
-                avalonRun.getLootItems().remove(existingBags.get(i));
-            }
-        } else {
+        if (request.getGrossValue().compareTo(BigDecimal.ZERO) > 0) {
             avalonRun.getLootItems().add(LootItem.builder()
                     .avalonRun(avalonRun)
                     .name("Bolsitas del piso")
@@ -205,21 +195,26 @@ public class AvalonRunService {
         if (avalonRun.getLootItems().isEmpty()) {
             throw new BusinessException("No se puede calcular el reparto sin loot");
         }
+        if (distributionRepository.countByAvalonRunId(avalonId) > 0) {
+            throw new BusinessException(
+                    "El reparto ya fue registrado para esta avaloniana. Recarga la página.");
+        }
 
+        List<AvalonParticipant> participants = dedupeParticipants(avalonRun.getParticipants());
         int mapsThrown = avalonRun.getMapsThrown();
         BigDecimal costPerMap = avalonRun.getMapsCost() != null ? avalonRun.getMapsCost() : BigDecimal.ZERO;
         BigDecimal mapsTotal = BalanceCalculator.calculateMapsTotalCost(mapsThrown, costPerMap);
         BigDecimal bagNet = BalanceCalculator.calculateBagNet(avalonRun.getLootItems(), mapsThrown, costPerMap);
         BigDecimal chestNet = BalanceCalculator.calculateChestNet(avalonRun.getLootItems());
         BigDecimal totalBalance = bagNet.add(chestNet).setScale(2, RoundingMode.HALF_UP);
-        double totalWeight = BalanceCalculator.calculateTotalWeight(avalonRun.getParticipants());
+        double totalWeight = BalanceCalculator.calculateTotalWeight(participants);
 
         log.info(
                 "Avalon {} reparto: bolsas netas {} ({} mapas × {} = -{}), cofres netos {}, total {}",
                 avalonId, bagNet, mapsThrown, costPerMap, mapsTotal, chestNet, totalBalance);
 
         List<Distribution> distributions = new ArrayList<>();
-        for (AvalonParticipant participant : avalonRun.getParticipants()) {
+        for (AvalonParticipant participant : participants) {
             BigDecimal amount = BalanceCalculator.calculateParticipantShare(
                     totalBalance, totalWeight, participant.getParticipantType());
 
@@ -274,10 +269,28 @@ public class AvalonRunService {
     }
 
     private void creditWallet(Player player, BigDecimal amount) {
-        Wallet wallet = walletRepository.findByPlayerId(player.getId())
-                .orElseGet(() -> Wallet.builder().player(player).balance(BigDecimal.ZERO).build());
+        Wallet wallet = walletRepository.findByPlayerId(player.getId()).orElse(null);
+        if (wallet == null) {
+            try {
+                wallet = walletRepository.save(Wallet.builder()
+                        .player(player)
+                        .balance(BigDecimal.ZERO)
+                        .build());
+            } catch (DataIntegrityViolationException ex) {
+                wallet = walletRepository.findByPlayerId(player.getId())
+                        .orElseThrow(() -> new BusinessException("No se pudo acreditar el balance del jugador"));
+            }
+        }
         wallet.setBalance(wallet.getBalance().add(amount));
         walletRepository.save(wallet);
+    }
+
+    private List<AvalonParticipant> dedupeParticipants(List<AvalonParticipant> participants) {
+        Map<Long, AvalonParticipant> unique = new LinkedHashMap<>();
+        for (AvalonParticipant participant : participants) {
+            unique.putIfAbsent(participant.getPlayer().getId(), participant);
+        }
+        return List.copyOf(unique.values());
     }
 
     private AvalonRun getAvalonOrThrow(Long id) {

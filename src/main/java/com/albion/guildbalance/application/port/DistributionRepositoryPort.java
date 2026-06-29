@@ -9,4 +9,6 @@ public interface DistributionRepositoryPort {
     Distribution save(Distribution distribution);
 
     List<Distribution> findByPlayerId(Long playerId);
+
+    long countByAvalonRunId(Long avalonRunId);
 }
