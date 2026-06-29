@@ -50,9 +50,9 @@ public class Player {
     @Builder.Default
     private boolean active = true;
 
-    @Column(nullable = false, columnDefinition = "boolean default true")
+    @Column(nullable = false)
     @Builder.Default
-    private boolean mustChangePassword = true;
+    private boolean mustChangePassword = false;
 
     @PrePersist
     protected void onCreate() {

@@ -52,9 +52,9 @@ public class DataInitializer {
     }
 
     private void syncAdmin(Player admin) {
-        admin.setPassword(passwordEncoder.encode(DEFAULT_PASSWORD));
         admin.setActive(true);
         admin.setRole(PlayerRole.ADMIN);
+        admin.setMustChangePassword(false);
         playerRepository.save(admin);
         walletRepository.findByPlayerId(admin.getId()).orElseGet(() ->
                 walletRepository.save(Wallet.builder()
