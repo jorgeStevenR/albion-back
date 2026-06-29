@@ -8,6 +8,7 @@ import com.albion.guildbalance.application.dto.request.ParticipantRequest;
 import com.albion.guildbalance.application.dto.response.AvalonRunResponse;
 import com.albion.guildbalance.application.dto.response.DistributionCalculationResponse;
 import com.albion.guildbalance.application.dto.response.DistributionResponse;
+import com.albion.guildbalance.application.dto.response.LootItemResponse;
 import com.albion.guildbalance.application.dto.response.ParticipantResponse;
 import com.albion.guildbalance.application.exception.BusinessException;
 import com.albion.guildbalance.application.exception.ResourceNotFoundException;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +55,10 @@ public class AvalonRunService {
     public List<AvalonRunResponse> findAll() {
         log.debug("Fetching all avalon runs");
         List<AvalonRunResponse> responses = mapper.toAvalonRunResponseList(avalonRunRepository.findAll());
-        responses.forEach(this::enrichRegistrationCounts);
+        responses.forEach(response -> {
+            enrichRegistrationCounts(response);
+            enrichLootEffectiveValues(response);
+        });
         return responses;
     }
 
@@ -63,7 +68,7 @@ public class AvalonRunService {
         if (syncParticipantsFromRegistrations(avalon)) {
             avalon = avalonRunRepository.save(avalon);
         }
-        AvalonRunResponse response = mapper.toAvalonRunResponse(avalon);
+        AvalonRunResponse response = mapAvalonResponse(avalon);
         enrichRegistrationCounts(response);
         enrichParticipantRoles(response, id);
         return response;
@@ -89,7 +94,7 @@ public class AvalonRunService {
 
         AvalonRun saved = avalonRunRepository.save(avalonRun);
         avalonRoleService.createDefaultSlots(saved);
-        return mapper.toAvalonRunResponse(saved);
+        return mapAvalonResponse(saved);
     }
 
     @Transactional
@@ -112,7 +117,7 @@ public class AvalonRunService {
                 .build();
 
         avalonRun.getParticipants().add(participant);
-        return mapper.toAvalonRunResponse(avalonRunRepository.save(avalonRun));
+        return mapAvalonResponse(avalonRunRepository.save(avalonRun));
     }
 
     @Transactional
@@ -125,8 +130,22 @@ public class AvalonRunService {
     public AvalonRunResponse setBagGross(Long avalonId, BagGrossRequest request) {
         log.info("Setting bag gross for avalon {}: {}", avalonId, request.getGrossValue());
         AvalonRun avalonRun = getOpenAvalonOrThrow(avalonId);
-        avalonRun.getLootItems().removeIf(l -> l.getType() == LootType.BAG);
-        if (request.getGrossValue().compareTo(BigDecimal.ZERO) > 0) {
+        List<LootItem> existingBags = avalonRun.getLootItems().stream()
+                .filter(l -> l.getType() == LootType.BAG)
+                .toList();
+
+        if (request.getGrossValue().compareTo(BigDecimal.ZERO) <= 0) {
+            avalonRun.getLootItems().removeIf(l -> l.getType() == LootType.BAG);
+        } else if (!existingBags.isEmpty()) {
+            LootItem bag = existingBags.getFirst();
+            bag.setName("Bolsitas del piso");
+            bag.setMarketValue(request.getGrossValue());
+            bag.setQuantity(1);
+            bag.setSaleStatus(LootSaleStatus.NOT_APPLICABLE);
+            for (int i = 1; i < existingBags.size(); i++) {
+                avalonRun.getLootItems().remove(existingBags.get(i));
+            }
+        } else {
             avalonRun.getLootItems().add(LootItem.builder()
                     .avalonRun(avalonRun)
                     .name("Bolsitas del piso")
@@ -136,7 +155,7 @@ public class AvalonRunService {
                     .saleStatus(LootSaleStatus.NOT_APPLICABLE)
                     .build());
         }
-        return mapper.toAvalonRunResponse(avalonRunRepository.save(avalonRun));
+        return mapAvalonResponse(avalonRunRepository.save(avalonRun));
     }
 
     @Transactional
@@ -159,7 +178,7 @@ public class AvalonRunService {
                 .build();
 
         avalonRun.getLootItems().add(lootItem);
-        return mapper.toAvalonRunResponse(avalonRunRepository.save(avalonRun));
+        return mapAvalonResponse(avalonRunRepository.save(avalonRun));
     }
 
     @Transactional
@@ -168,7 +187,7 @@ public class AvalonRunService {
         AvalonRun avalonRun = getOpenAvalonOrThrow(avalonId);
         avalonRun.setMapsThrown(request.getMapsThrown());
         avalonRun.setMapsCost(request.getMapsCost());
-        return mapper.toAvalonRunResponse(avalonRunRepository.save(avalonRun));
+        return mapAvalonResponse(avalonRunRepository.save(avalonRun));
     }
 
     @Transactional
@@ -187,9 +206,15 @@ public class AvalonRunService {
             throw new BusinessException("No se puede calcular el reparto sin loot");
         }
 
-        BigDecimal totalBalance = BalanceCalculator.calculateTotalBalance(
-                avalonRun.getLootItems(), avalonRun.getMapsCost());
+        BigDecimal mapsCost = avalonRun.getMapsCost() != null ? avalonRun.getMapsCost() : BigDecimal.ZERO;
+        BigDecimal bagNet = BalanceCalculator.calculateBagNet(avalonRun.getLootItems(), mapsCost);
+        BigDecimal chestNet = BalanceCalculator.calculateChestNet(avalonRun.getLootItems());
+        BigDecimal totalBalance = bagNet.add(chestNet).setScale(2, RoundingMode.HALF_UP);
         double totalWeight = BalanceCalculator.calculateTotalWeight(avalonRun.getParticipants());
+
+        log.info(
+                "Avalon {} reparto: bolsas netas {} (mapas -{}), cofres netos {}, total {}",
+                avalonId, bagNet, mapsCost, chestNet, totalBalance);
 
         List<Distribution> distributions = new ArrayList<>();
         for (AvalonParticipant participant : avalonRun.getParticipants()) {
@@ -215,6 +240,9 @@ public class AvalonRunService {
         return DistributionCalculationResponse.builder()
                 .avalonId(avalonId)
                 .totalBalance(totalBalance)
+                .bagNet(bagNet)
+                .chestNet(chestNet)
+                .mapsDeducted(mapsCost)
                 .totalWeight(totalWeight)
                 .distributions(distributionResponses)
                 .build();
@@ -234,7 +262,7 @@ public class AvalonRunService {
         }
 
         avalonRun.setStatus(AvalonStatus.CLOSED);
-        return mapper.toAvalonRunResponse(avalonRunRepository.save(avalonRun));
+        return mapAvalonResponse(avalonRunRepository.save(avalonRun));
     }
 
     /** @deprecated use {@link #calculateAndFinish(Long)} */
@@ -280,6 +308,33 @@ public class AvalonRunService {
             }
         }
         return changed;
+    }
+
+    private AvalonRunResponse mapAvalonResponse(AvalonRun avalon) {
+        AvalonRunResponse response = mapper.toAvalonRunResponse(avalon);
+        enrichLootEffectiveValues(response);
+        return response;
+    }
+
+    private void enrichLootEffectiveValues(AvalonRunResponse response) {
+        if (response.getLootItems() == null) {
+            return;
+        }
+        BigDecimal mapsCost = response.getMapsCost() != null ? response.getMapsCost() : BigDecimal.ZERO;
+        if (mapsCost.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        for (LootItemResponse item : response.getLootItems()) {
+            if (item.getType() != LootType.BAG) {
+                continue;
+            }
+            BigDecimal gross = item.getMarketValue().multiply(BigDecimal.valueOf(item.getQuantity()));
+            BigDecimal net = gross.subtract(mapsCost);
+            if (net.compareTo(BigDecimal.ZERO) < 0) {
+                net = BigDecimal.ZERO;
+            }
+            item.setEffectiveValue(net.setScale(2, RoundingMode.HALF_UP));
+        }
     }
 
     private void enrichRegistrationCounts(AvalonRunResponse response) {

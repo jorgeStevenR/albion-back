@@ -16,6 +16,9 @@ public class DistributionCalculationResponse {
 
     private Long avalonId;
     private BigDecimal totalBalance;
+    private BigDecimal bagNet;
+    private BigDecimal chestNet;
+    private BigDecimal mapsDeducted;
     private Double totalWeight;
     private List<DistributionResponse> distributions;
 }
